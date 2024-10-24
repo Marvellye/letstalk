@@ -1,7 +1,7 @@
 <?php 
   session_start();
   if(isset($_SESSION['unique_id'])){
-    header("location: users.php");
+    header("location: dashboard");
   }
 ?>
 <!DOCTYPE html>
@@ -10,45 +10,79 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login Page</title>
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@next"></script>
+    <!-- Axios CDN for HTTP requests -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 </head>
 <body>
-    login Page
-    <form action="#" method="POST" enctype="multipart/form-data" autocomplete="off">
-        <span class="error-text"></span>
-        <input type="text" name="email" placeholder="email@gmail.com" required>
-        <input class="login" type="submit" name="submit" value="Continue to Chat">
-        <input type="password" class="continue" name="password" placeholder="......." required>
-    </form>
-    
+    <div id="app">
+        <div v-if="!isLoggedIn">
+            <h2>Login Page</h2>
+            <form @submit.prevent="submitForm" autocomplete="off">
+                <span class="error-text" v-if="error">{{ error }}</span>
+                <input type="email" v-model="email" placeholder="email@gmail.com" required>
+                <input type="password" v-model="password" placeholder="......." required>
+                <button type="submit">Continue to Chat</button>
+            </form>
+        </div>
+        <div v-else>
+            <p>You are already logged in. Redirecting...</p>
+        </div>
+    </div>
+
     <script>
-        const form = document.querySelector("form"),
-        continueBtn = form.querySelector(".continue"),
-        errorText = form.querySelector(".error-text");
+      const { createApp, ref } = Vue;
 
-        form.onsubmit = (e)=>{
-            e.preventDefault();
-        }
+      createApp({
+        setup() {
+          const email = ref('');
+          const password = ref('');
+          const error = ref('');
+          const isLoggedIn = ref(false);
 
-        continueBtn.onclick = ()=>{
-            let xhr = new XMLHttpRequest();
-            xhr.open("POST", "core/login.php", true);
-        xhr.onload = ()=>{
-        if(xhr.readyState === XMLHttpRequest.DONE){
-          if(xhr.status === 200){
-              let data = xhr.response;
-              if(data === "success"){
-                location.href = "dashboard";
-              }else{
-                errorText.style.display = "block";
-                errorText.textContent = data;
-              }
-          }
-          }
+          // Check session on mount
+          const checkSession = () => {
+            axios.get('core/session.php') // Replace with your actual session check API
+              .then(response => {
+                if (response.data === "logged_in") {
+                  isLoggedIn.value = true;
+                  window.location.href = "dashboard"; // Redirect if already logged in
+                }
+              });
+          };
+
+          // Submit form function
+          const submitForm = () => {
+            const formData = new FormData();
+            formData.append('email', email.value);
+            formData.append('password', password.value);
+
+            axios.post('core/login.php', formData)
+              .then(response => {
+                if (response.data === 'success') {
+                  window.location.href = "dashboard";
+                } else {
+                  error.value = response.data;
+                }
+              })
+              .catch(() => {
+                error.value = "An error occurred. Please try again.";
+              });
+          };
+
+          // Call session check on component mount
+          checkSession();
+
+          return {
+            email,
+            password,
+            error,
+            isLoggedIn,
+            submitForm
+          };
         }
-        let formData = new FormData(form);
-        xhr.send(formData);
-    }
+      }).mount('#app');
     </script>
-
 </body>
 </html>
